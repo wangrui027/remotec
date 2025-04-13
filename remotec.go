@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.1.0"
+	appVersion  = "1.2.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -348,8 +348,8 @@ func logMessage(level, format string, v ...interface{}) {
 	msg := fmt.Sprintf(format, v...)
 	_, file, line, _ := runtime.Caller(2)
 	fmt.Printf("[%s][%s][PID:%d][%s:%d] %s\n",
-		level,
 		time.Now().Format(timeFormat),
+		level,
 		os.Getpid(),
 		filepath.Base(file),
 		line,
