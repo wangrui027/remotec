@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.0.0"
+	appVersion  = "1.1.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -92,7 +92,7 @@ func startServer() {
 
 	handler := http.HandlerFunc(requestHandler)
 	if token != "" {
-		handler = authMiddleware(handler)
+		handler = tokenAuthMiddleware(handler)
 	}
 
 	http.HandleFunc("/"+endpointPath, handler)
@@ -101,6 +101,19 @@ func startServer() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		logError("服务器启动失败: %v", err)
 		os.Exit(1)
+	}
+}
+
+// 修改后的token认证中间件
+func tokenAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqToken := r.Header.Get("token")
+		if reqToken != token {
+			logWarn("认证失败，收到token：%s", reqToken)
+			sendError(w, "未授权", http.StatusForbidden)
+			return
+		}
+		next(w, r)
 	}
 }
 
@@ -261,19 +274,6 @@ func executeCommand(ctx context.Context, execID string) {
 	logJSON(result)
 }
 
-// 辅助函数
-func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader != "Bearer "+token {
-			logWarn("认证失败，收到请求头：%s", authHeader)
-			sendError(w, "未授权", http.StatusForbidden)
-			return
-		}
-		next(w, r)
-	}
-}
-
 func sendResponse(w http.ResponseWriter, data interface{}, code int) {
 	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(code)
@@ -377,10 +377,11 @@ func printHelp() {
   exec_id     string    执行ID（执行程序后获得）
 
 示例:
-  程序启动：remotec -p 8080 -c "ping 127.0.0.1" --token secret
+  程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 4" --token secret
   单次执行：curl 'http://localhost:8080/path'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
+  携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
 `, appVersion)
 }
