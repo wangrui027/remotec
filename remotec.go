@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.9.0"
+	appVersion  = "1.10.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -95,7 +95,11 @@ func startServer() {
 	}
 
 	http.HandleFunc("/"+endpointPath, handler)
-	logInfo("服务启动成功，监听端点：%s", url)
+	logInfo("服务启动成功，监听地址：%s", url)
+	if token != "" {
+		// token信息打印
+		logInfo("token已设置，接口调用时需传递请求头：'token: %s'", token)
+	}
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		logError("服务器启动失败: %v", err)
