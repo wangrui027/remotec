@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.3.0"
+	appVersion  = "1.4.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -148,7 +148,6 @@ func handleLoop(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-ctx.Done():
-				logInfo("循环执行已停止 [ExecID:%s]", execID)
 				return
 			default:
 				executeCommand(ctx, execID)
