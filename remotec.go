@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.7.0"
+	appVersion  = "1.8.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -370,8 +370,8 @@ func printHelp() {
 程序启动参数：
   -p          string    监听的端口号 (必填)
   -c          string    要执行的系统命令 (必填)
-  --token     string    认证token格式: Bearer <token>
-  --endpoint  string    自定义端点路径
+  --token     string    认证token (选填)
+  --endpoint  string    自定义端点路径 (选填)
   -h, --help            显示帮助信息
 
 接口请求参数：
