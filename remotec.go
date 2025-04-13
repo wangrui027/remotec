@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.4.0"
+	appVersion  = "1.5.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -388,9 +388,9 @@ func printHelp() {
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
 说明：
-  1、单次执行和多次执行的结果会立即返回；
+  1、单次执行和多次执行的结果随Response返回；
   2、循环执行时程序http响应会立即返回，执行结果通过日志输出；
-  3、多次执行返回的output仅包含最后一次执行的结果。
+  3、多次执行返回的output为最后一次执行的结果。
 
 `, appVersion)
 }
