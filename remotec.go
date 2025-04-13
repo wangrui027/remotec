@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.6.0"
+	appVersion  = "1.7.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -375,16 +375,17 @@ func printHelp() {
   -h, --help            显示帮助信息
 
 接口请求参数：
-  action      string    执行动作（loop, multiple, stop）
-  delay       int       循环执行间隔 (秒）
+  action      string    执行动作（multiple、loop、stop）
+  delay       int       循环执行间隔（秒）
   count       int       多次执行次数
-  exec_id     string    执行ID（执行程序后获得）
+  exec_id     string    执行ID（请求返回中获得）
 
 接口请求示例：
   程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token secret
   单次执行：curl 'http://localhost:8080/path'
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
+  停止执行：curl 'http://localhost:8080/path?action=stop&exec_id=xxx'
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
 程序说明：
