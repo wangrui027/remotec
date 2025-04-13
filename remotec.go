@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.8.0"
+	appVersion  = "1.9.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -130,9 +130,33 @@ func requestHandler(w http.ResponseWriter, r *http.Request) {
 		handleLoop(w, r)
 	case "stop":
 		handleStop(w, r)
+	case "stopAll":
+		handleStopAll(w, r)
 	default:
 		handleSingle(w, r)
 	}
+}
+
+// 新增的停止所有执行函数
+func handleStopAll(w http.ResponseWriter, r *http.Request) {
+	execLock.Lock()
+	defer execLock.Unlock()
+
+	stoppedCount := 0
+	for id, execution := range executions {
+		execution.Cancel()
+		execution.Stopped = true
+		stoppedCount++
+		logInfo("已停止执行 [ExecID:%s]", id)
+	}
+
+	// 清空执行记录
+	executions = make(map[string]*Execution)
+
+	sendResponse(w, CommandResult{
+		Status:  "STOPPED_ALL",
+		Message: fmt.Sprintf("已停止%d个正在执行的任务", stoppedCount),
+	}, http.StatusOK)
 }
 
 func handleLoop(w http.ResponseWriter, r *http.Request) {
@@ -375,7 +399,7 @@ func printHelp() {
   -h, --help            显示帮助信息
 
 接口请求参数：
-  action      string    执行动作（multiple、loop、stop）
+  action      string    执行动作（multiple、loop、stop、stopAll）
   delay       int       循环执行间隔（秒）
   count       int       多次执行次数
   exec_id     string    执行ID（请求返回中获得）
@@ -386,6 +410,7 @@ func printHelp() {
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
   停止执行：curl 'http://localhost:8080/path?action=stop&exec_id=xxx'
+  停止所有：curl 'http://localhost:8080/path?action=stopAll'
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
 程序说明：

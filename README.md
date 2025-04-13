@@ -7,7 +7,7 @@
 ```bash
 [root@aliyun-centos7 ~]# remotec
 
-远程命令执行服务 v1.8.0
+远程命令执行服务 v1.9.0
 
 使用方法：
   remotec -p 端口号 -c 命令 [选项]
@@ -20,7 +20,7 @@
   -h, --help            显示帮助信息
 
 接口请求参数：
-  action      string    执行动作（multiple、loop、stop）
+  action      string    执行动作（multiple、loop、stop、stopAll）
   delay       int       循环执行间隔（秒）
   count       int       多次执行次数
   exec_id     string    执行ID（请求返回中获得）
@@ -31,6 +31,7 @@
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
   停止执行：curl 'http://localhost:8080/path?action=stop&exec_id=xxx'
+  停止所有：curl 'http://localhost:8080/path?action=stopAll'
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
 程序说明：
