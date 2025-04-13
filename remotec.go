@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.2.0"
+	appVersion  = "1.3.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -87,8 +87,7 @@ func main() {
 
 func startServer() {
 	endpointPath := getEndpoint()
-	url := fmt.Sprintf("http://localhost:%s/%s", port, endpointPath)
-	logInfo("服务启动成功，监听端点：%s", url)
+	url := fmt.Sprintf("http://0.0.0.0:%s/%s", port, endpointPath)
 
 	handler := http.HandlerFunc(requestHandler)
 	if token != "" {
@@ -96,7 +95,7 @@ func startServer() {
 	}
 
 	http.HandleFunc("/"+endpointPath, handler)
-	logInfo("开始监听端口：%s", port)
+	logInfo("服务启动成功，监听端点：%s", url)
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		logError("服务器启动失败: %v", err)
@@ -164,7 +163,7 @@ func handleLoop(w http.ResponseWriter, r *http.Request) {
 		ExecID:   execID,
 		Status:   "STARTED",
 		Command:  command,
-		Message:  "循环执行，每次间隔：" + strconv.Itoa(delay) + "秒",
+		Message:  "循环执行，间隔：" + strconv.Itoa(delay) + "秒",
 		ExecTime: time.Now().Format(timeFormat),
 	}, http.StatusOK)
 }
@@ -176,30 +175,33 @@ func handleMultiple(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	registerExecution(execID, cancel)
+	defer cleanExecution(execID)
 
-	go func() {
-		defer cleanExecution(execID)
+	startTime := time.Now()
 
-		for i := 0; i < max(count, 1); i++ {
-			select {
-			case <-ctx.Done():
-				logInfo("多次执行已停止 [ExecID:%s]", execID)
-				return
-			default:
-				executeCommand(ctx, execID)
-				if delay > 0 && i < count-1 {
-					time.Sleep(time.Duration(delay) * time.Second)
-				}
+	var result CommandResult
+	// 同步执行循环
+	for i := 0; i < max(count, 1); i++ {
+		select {
+		case <-ctx.Done():
+			logInfo("多次执行已停止 [ExecID:%s]", execID)
+			return
+		default:
+			result = executeCommand(ctx, execID)
+			if delay > 0 && i < count-1 {
+				time.Sleep(time.Duration(delay) * time.Second)
 			}
 		}
-	}()
+	}
 
 	sendResponse(w, CommandResult{
-		ExecID:   execID,
-		Status:   "STARTED",
-		Command:  command,
-		Message:  fmt.Sprintf("多次执行，执行次数：%d，每次间隔：%d秒", count, delay),
-		ExecTime: time.Now().Format(timeFormat),
+		ExecID:     execID,
+		Status:     "COMPLETED", // 改为 COMPLETED 表示同步执行已完成
+		Command:    command,
+		Message:    fmt.Sprintf("多次执行，次数：%d，间隔：%d秒", count, delay),
+		ExecTime:   time.Now().Format(timeFormat),
+		ExecSecond: time.Since(startTime).Seconds(),
+		Output:     result.Output,
 	}, http.StatusOK)
 }
 
@@ -213,9 +215,9 @@ func handleStop(w http.ResponseWriter, r *http.Request) {
 	execLock.Lock()
 	defer execLock.Unlock()
 
-	if exec, exists := executions[execID]; exists {
-		exec.Cancel()
-		exec.Stopped = true
+	if execution, exists := executions[execID]; exists {
+		execution.Cancel()
+		execution.Stopped = true
 		delete(executions, execID)
 		logInfo("已停止执行 [ExecID:%s]", execID)
 		sendResponse(w, CommandResult{ExecID: execID, Status: "STOPPED"}, http.StatusOK)
@@ -231,21 +233,22 @@ func handleSingle(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	registerExecution(execID, cancel)
-	executeCommand(ctx, execID)
+	result := executeCommand(ctx, execID)
 	cleanExecution(execID)
 	duration := time.Since(startTime).Seconds()
 
 	sendResponse(w, CommandResult{
 		ExecID:     execID,
-		Status:     "SUCCESS",
+		Status:     "COMPLETED",
 		Command:    command,
-		Message:    "单次执行成功",
+		Message:    "单次执行",
 		ExecTime:   startTime.Format(timeFormat),
 		ExecSecond: duration,
+		Output:     result.Output,
 	}, http.StatusOK)
 }
 
-func executeCommand(ctx context.Context, execID string) {
+func executeCommand(ctx context.Context, execID string) CommandResult {
 	startTime := time.Now()
 	var cmd *exec.Cmd
 
@@ -260,7 +263,7 @@ func executeCommand(ctx context.Context, execID string) {
 
 	result := CommandResult{
 		ExecID:     execID,
-		Status:     "SUCCESS",
+		Status:     "COMPLETED",
 		Command:    command,
 		ExecTime:   startTime.Format(timeFormat),
 		ExecSecond: duration,
@@ -272,6 +275,8 @@ func executeCommand(ctx context.Context, execID string) {
 	}
 
 	logJSON(result)
+
+	return result
 }
 
 func sendResponse(w http.ResponseWriter, data interface{}, code int) {
@@ -360,28 +365,33 @@ func printHelp() {
 	fmt.Printf(`
 远程命令执行服务 v%s
 
-使用方法:
+使用方法：
   remotec -p 端口号 -c 命令 [选项]
 
-参数说明:
+参数说明：
   -p          string    监听的端口号 (必填)
   -c          string    要执行的系统命令 (必填)
   --token     string    认证token格式: Bearer <token>
   --endpoint  string    自定义端点路径
   -h, --help            显示帮助信息
 
-请求参数:
+请求参数：
   action      string    执行动作（loop, multiple, stop）
   delay       int       循环执行间隔 (秒）
   count       int       多次执行次数
   exec_id     string    执行ID（执行程序后获得）
 
-示例:
+示例：
   程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 4" --token secret
   单次执行：curl 'http://localhost:8080/path'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
+
+说明：
+  1、单次执行和多次执行的结果会立即返回；
+  2、循环执行时程序http响应会立即返回，执行结果通过日志输出；
+  3、多次执行返回的output仅包含最后一次执行的结果。
 
 `, appVersion)
 }
