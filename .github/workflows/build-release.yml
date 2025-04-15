@@ -13,21 +13,36 @@ jobs:
     strategy:
       matrix:
         go-version: [ '1.23.x' ]
-        os: [ windows, linux, darwin ]
-        # 扩展支持的架构，包括路由器常见架构
-        arch: [ amd64, arm64, arm, mips, mipsle, mips64, mips64le ]
-        # 排除不支持的组合（例如 darwin + arm）
-        exclude:
-          - os: darwin
+        # 精简后的架构组合：优先覆盖主流设备
+        include:
+          - os: linux
+            arch: amd64
+            suffix: linux-amd64
+          - os: linux
             arch: arm
-          - os: darwin
+            goarm: 7
+            suffix: linux-armv7
+          - os: linux
+            arch: arm64
+            suffix: linux-arm64
+          - os: linux
             arch: mips
-          - os: darwin
+            suffix: linux-mips
+          - os: linux
             arch: mipsle
+            suffix: linux-mipsle
+          - os: windows
+            arch: amd64
+            suffix: windows-amd64
+          - os: windows
+            arch: arm64
+            suffix: windows-arm64
           - os: darwin
-            arch: mips64
+            arch: amd64
+            suffix: macos-amd64
           - os: darwin
-            arch: mips64le
+            arch: arm64
+            suffix: macos-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      - name: Get version from code
+      - name: Get version
         id: version
         run: |
           VERSION=$(grep -E '^version:' config.yml | awk -F': ' '{print $2}')
@@ -60,22 +75,20 @@ jobs:
           if [ "${{ matrix.os }}" = "windows" ]; then
             OUTPUT="$OUTPUT.exe"
           fi
-          # 为 ARM 架构设置 GOARM（默认为 7，可根据需要调整）
-          if [ "${{ matrix.arch }}" = "arm" ]; then
-            export GOARM=7
+          # 动态设置 GOARM（仅限 ARMv7）
+          if [ "${{ matrix.arch }}" = "arm" ] && [ -n "${{ matrix.goarm }}" ]; then
+            export GOARM=${{ matrix.goarm }}
           fi
           CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
-          echo "Built $OUTPUT"
+          echo "Built $OUTPUT for ${{ matrix.os }}-${{ matrix.arch }}"
 
       - name: Create archives
         run: |
           mkdir -p dist
           if [ "${{ matrix.os }}" = "windows" ]; then
-            zip "dist/remotec-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.zip" "remotec.exe"
-          elif [ "${{ matrix.os }}" = "darwin" ]; then
-            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-macos-${{ matrix.arch }}.tar.gz" "remotec"
+            zip "dist/remotec-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.zip" "remotec.exe"
           else
-            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz" "remotec"
+            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.tar.gz" "remotec"
           fi
 
       - name: Create Release
