@@ -21,7 +21,7 @@ import (
 
 // 常量定义
 const (
-	appVersion  = "1.10.0"
+	appVersion  = "1.11.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -112,7 +112,7 @@ func tokenAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqToken := r.Header.Get("token")
 		if reqToken != token {
-			logWarn("认证失败，收到token：%s", reqToken)
+			logWarn("认证失败，未收到正确token")
 			sendError(w, "未授权", http.StatusForbidden)
 			return
 		}
