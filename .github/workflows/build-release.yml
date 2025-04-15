@@ -66,12 +66,12 @@ jobs:
             tar -czf "dist/remotec-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz" "remotec"
           fi
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: remotec-binaries-${{ matrix.os }}-${{ matrix.arch }}  # 唯一名称
-          path: dist/
-          if-no-files-found: error
+#      - name: Upload artifacts
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: remotec-binaries-${{ matrix.os }}-${{ matrix.arch }}  # 唯一名称
+#          path: dist/
+#          if-no-files-found: error
           
       - name: Create Release
         uses: softprops/action-gh-release@v2

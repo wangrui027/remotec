@@ -19,14 +19,12 @@ import (
 	"time"
 )
 
-// 常量定义
 const (
-	appVersion  = "1.11.0"
+	appVersion  = "1.12.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
 
-// 命令行参数
 var (
 	port     string
 	command  string
@@ -35,20 +33,17 @@ var (
 	showHelp bool
 )
 
-// 执行管理结构
 type Execution struct {
 	ID      string
 	Cancel  context.CancelFunc
 	Stopped bool
 }
 
-// 全局变量
 var (
 	execLock   sync.Mutex
 	executions = make(map[string]*Execution)
 )
 
-// 响应结构
 type CommandResult struct {
 	ExecID     string  `json:"exec_id"`
 	Status     string  `json:"status"`
@@ -57,6 +52,14 @@ type CommandResult struct {
 	ExecTime   string  `json:"exec_time"`
 	ExecSecond float64 `json:"exec_second"`
 	Output     string  `json:"output"`
+}
+
+// POST请求参数结构体
+type RequestParams struct {
+	Action string `json:"action"`
+	Delay  int    `json:"delay"`
+	Count  int    `json:"count"`
+	ExecID string `json:"exec_id"`
 }
 
 func init() {
@@ -97,7 +100,6 @@ func startServer() {
 	http.HandleFunc("/"+endpointPath, handler)
 	logInfo("服务启动成功，监听地址：%s", url)
 	if token != "" {
-		// token信息打印
 		logInfo("token已设置，接口调用时需传递请求头：'token: %s'", token)
 	}
 
@@ -107,12 +109,11 @@ func startServer() {
 	}
 }
 
-// 修改后的token认证中间件
 func tokenAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqToken := r.Header.Get("token")
-		if reqToken != token {
-			logWarn("认证失败，未收到正确token")
+		if token != "" && reqToken != token {
+			logWarn("认证失败，未收到正确的token")
 			sendError(w, "未授权", http.StatusForbidden)
 			return
 		}
@@ -121,27 +122,49 @@ func tokenAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	// 支持GET和POST方法
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		sendError(w, "方法不允许", http.StatusMethodNotAllowed)
 		return
 	}
 
-	action := r.URL.Query().Get("action")
-	switch action {
+	var params RequestParams
+	var err error
+
+	// 解析请求参数
+	if r.Method == http.MethodGet {
+		// 从查询参数解析
+		params.Action = r.URL.Query().Get("action")
+		params.Delay, _ = strconv.Atoi(r.URL.Query().Get("delay"))
+		params.Count, _ = strconv.Atoi(r.URL.Query().Get("count"))
+		params.ExecID = r.URL.Query().Get("exec_id")
+	} else {
+		// 从JSON body解析
+		defer r.Body.Close()
+		if err = json.NewDecoder(r.Body).Decode(&params); err != nil {
+			sendError(w, "无效的JSON格式", http.StatusBadRequest)
+			return
+		}
+		// 处理可能缺失的字段（默认值处理）
+		if params.Action == "" {
+			params.Action = "single" // 默认行为，类似原逻辑
+		}
+	}
+
+	switch params.Action {
 	case "multiple":
-		handleMultiple(w, r)
+		handleMultiple(w, r, params)
 	case "loop":
-		handleLoop(w, r)
+		handleLoop(w, r, params)
 	case "stop":
-		handleStop(w, r)
+		handleStop(w, r, params)
 	case "stopAll":
 		handleStopAll(w, r)
 	default:
-		handleSingle(w, r)
+		handleSingle(w, r, params)
 	}
 }
 
-// 新增的停止所有执行函数
 func handleStopAll(w http.ResponseWriter, r *http.Request) {
 	execLock.Lock()
 	defer execLock.Unlock()
@@ -154,7 +177,6 @@ func handleStopAll(w http.ResponseWriter, r *http.Request) {
 		logInfo("已停止执行 [ExecID:%s]", id)
 	}
 
-	// 清空执行记录
 	executions = make(map[string]*Execution)
 
 	sendResponse(w, CommandResult{
@@ -163,8 +185,8 @@ func handleStopAll(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func handleLoop(w http.ResponseWriter, r *http.Request) {
-	delay, _ := strconv.Atoi(r.URL.Query().Get("delay"))
+func handleLoop(w http.ResponseWriter, r *http.Request, params RequestParams) {
+	delay := params.Delay
 	execID := generateID()
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -190,14 +212,14 @@ func handleLoop(w http.ResponseWriter, r *http.Request) {
 		ExecID:   execID,
 		Status:   "STARTED",
 		Command:  command,
-		Message:  "循环执行，间隔：" + strconv.Itoa(delay) + "秒",
+		Message:  fmt.Sprintf("循环执行，间隔：%d秒", delay),
 		ExecTime: time.Now().Format(timeFormat),
 	}, http.StatusOK)
 }
 
-func handleMultiple(w http.ResponseWriter, r *http.Request) {
-	count, _ := strconv.Atoi(r.URL.Query().Get("count"))
-	delay, _ := strconv.Atoi(r.URL.Query().Get("delay"))
+func handleMultiple(w http.ResponseWriter, r *http.Request, params RequestParams) {
+	count := max(params.Count, 1)
+	delay := params.Delay
 	execID := generateID()
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -205,10 +227,9 @@ func handleMultiple(w http.ResponseWriter, r *http.Request) {
 	defer cleanExecution(execID)
 
 	startTime := time.Now()
-
 	var result CommandResult
-	// 同步执行循环
-	for i := 0; i < max(count, 1); i++ {
+
+	for i := 0; i < count; i++ {
 		select {
 		case <-ctx.Done():
 			logInfo("多次执行已停止 [ExecID:%s]", execID)
@@ -223,7 +244,7 @@ func handleMultiple(w http.ResponseWriter, r *http.Request) {
 
 	sendResponse(w, CommandResult{
 		ExecID:     execID,
-		Status:     "COMPLETED", // 改为 COMPLETED 表示同步执行已完成
+		Status:     "COMPLETED",
 		Command:    command,
 		Message:    fmt.Sprintf("多次执行，次数：%d，间隔：%d秒", count, delay),
 		ExecTime:   time.Now().Format(timeFormat),
@@ -232,8 +253,8 @@ func handleMultiple(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func handleStop(w http.ResponseWriter, r *http.Request) {
-	execID := r.URL.Query().Get("exec_id")
+func handleStop(w http.ResponseWriter, r *http.Request, params RequestParams) {
+	execID := params.ExecID
 	if execID == "" {
 		sendError(w, "缺少exec_id参数", http.StatusBadRequest)
 		return
@@ -253,7 +274,7 @@ func handleStop(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleSingle(w http.ResponseWriter, r *http.Request) {
+func handleSingle(w http.ResponseWriter, r *http.Request, params RequestParams) {
 	startTime := time.Now()
 	execID := generateID()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -363,7 +384,6 @@ func logJSON(data interface{}) {
 	}
 }
 
-// 日志相关函数
 func logInfo(format string, v ...interface{}) {
 	logMessage("INFO", format, v...)
 }
@@ -392,7 +412,7 @@ func printHelp() {
 	fmt.Printf(`
 远程命令执行服务 v%s
 
-使用方法：
+程序启动：
   remotec -p 端口号 -c 命令 [选项]
 
 程序启动参数：
@@ -402,14 +422,18 @@ func printHelp() {
   --endpoint  string    自定义端点路径 (选填)
   -h, --help            显示帮助信息
 
+程序启动示例：
+  remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token secret
+
 接口请求参数：
+  GET请求参数通过查询字符串传递，POST请求参数通过JSON body传递，支持以下字段：
   action      string    执行动作（multiple、loop、stop、stopAll）
   delay       int       循环执行间隔（秒）
   count       int       多次执行次数
   exec_id     string    执行ID（请求返回中获得）
 
-接口请求示例：
-  程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token secret
+GET请求示例：
+  程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token your_token
   单次执行：curl 'http://localhost:8080/path'
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
@@ -417,7 +441,13 @@ func printHelp() {
   停止所有：curl 'http://localhost:8080/path?action=stopAll'
   携带token：curl -H 'token: your_token' 'http://localhost:8080/path'
 
-程序说明：
+POST请求示例：
+  curl -X POST -H "Content-Type: application/json" -H "token: your_token" \
+  -d '{"action":"loop","delay":5}' http://localhost:8080/path
+
+其他请求示例与原GET方式类似，只需将参数放入JSON body即可。
+
+使用说明：
   1、单次执行和多次执行的结果随Response返回；
   2、多次执行返回的output为最后一次执行的结果；
   3、循环执行时Response会立即返回，执行结果通过日志输出；
