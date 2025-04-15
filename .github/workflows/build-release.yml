@@ -14,7 +14,6 @@ jobs:
         os: [ windows, linux, darwin ]
         arch: [ amd64, arm64 ]
         exclude:
-          # Exclude darwin/arm64 as it's not commonly needed
           - os: darwin
             arch: arm64
     steps:
@@ -26,8 +25,9 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Initialize Go module
-        run: go mod init github.com/wangrui027/remotec
+      # 关键修改：删除 go mod init，改为直接运行 go mod tidy
+      - name: Install dependencies
+        run: go mod tidy
 
       - name: Get version from code
         id: version
@@ -48,13 +48,10 @@ jobs:
         run: |
           mkdir -p dist
           if [ "${{ matrix.os }}" = "windows" ]; then
-            # Windows
             zip "dist/remotec-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.zip" "remotec.exe"
           elif [ "${{ matrix.os }}" = "darwin" ]; then
-            # macOS
             tar -czf "dist/remotec-${{ steps.version.outputs.version }}-macos-${{ matrix.arch }}.tar.gz" "remotec"
           else
-            # Linux
             tar -czf "dist/remotec-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz" "remotec"
           fi
 
