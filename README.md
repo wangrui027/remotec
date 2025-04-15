@@ -12,13 +12,13 @@
 程序启动：
   remotec -p 端口号 -c 命令 [选项]
 
-程序启动参数：
-  -p          string    监听的端口号 (必填)
-  -c          string    要执行的系统命令 (必填)
-  --token     string    认证token (选填)
-  --endpoint  string    自定义端点路径 (选填)
-  -v, --version         显示版本号
-  -h, --help            显示帮助信息
+选项列表：
+  -p            string    监听的端口号 (必填)
+  -c            string    要执行的系统命令 (必填)
+  --token       string    认证token (选填)
+  --endpoint    string    自定义端点路径 (选填)
+  -v                      显示版本号
+  --help                  显示帮助信息
 
 程序启动示例：
   remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token your_token

@@ -78,9 +78,7 @@ func init() {
 	flag.StringVar(&token, "token", "", "认证token")
 	flag.StringVar(&endpoint, "endpoint", "", "自定义端点路径")
 	flag.BoolVar(&showVersion, "v", false, "显示版本号")
-	flag.BoolVar(&showVersion, "version", false, "")
 	flag.BoolVar(&showHelp, "help", false, "显示帮助信息")
-	flag.BoolVar(&showHelp, "h", false, "")
 }
 
 func main() {
@@ -120,7 +118,7 @@ func initAppConfig() {
 
 func startServer() {
 	endpointPath := getEndpoint()
-	url := fmt.Sprintf("http://0.0.0.0:%s/%s", port, endpointPath)
+	url := fmt.Sprintf("http://localhost:%s/%s", port, endpointPath)
 
 	handler := http.HandlerFunc(requestHandler)
 	if token != "" {
@@ -445,13 +443,13 @@ func printHelp() {
 程序启动：
   remotec -p 端口号 -c 命令 [选项]
 
-程序启动参数：
-  -p          string    监听的端口号 (必填)
-  -c          string    要执行的系统命令 (必填)
-  --token     string    认证token (选填)
-  --endpoint  string    自定义端点路径 (选填)
-  -v, --version         显示版本号
-  -h, --help            显示帮助信息
+选项列表：
+  -p            string    监听的端口号 (必填)
+  -c            string    要执行的系统命令 (必填)
+  --token       string    认证token (选填)
+  --endpoint    string    自定义端点路径 (选填)
+  -v                      显示版本号
+  --help                  显示帮助信息
 
 程序启动示例：
   remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token your_token
@@ -480,7 +478,6 @@ POST请求示例：
   1、单次执行和多次执行的结果随Response返回；
   2、多次执行返回的output为最后一次执行的结果；
   3、循环执行时Response会立即返回，执行结果通过日志输出；
-
 `, appConfig.Version)
 }
 
