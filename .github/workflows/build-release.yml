@@ -27,7 +27,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Initialize Go module
-        run: go mod init github.com/yourusername/remotec
+        run: go mod init github.com/wangrui027/remotec
 
       - name: Get version from code
         id: version
