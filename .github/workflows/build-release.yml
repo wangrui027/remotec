@@ -1,0 +1,63 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.21.x' ]
+        os: [ windows, linux, darwin ]
+        arch: [ amd64, arm64 ]
+        exclude:
+          # Exclude darwin/arm64 as it's not commonly needed
+          - os: darwin
+            arch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Get version from code
+        id: version
+        run: |
+          VERSION=$(grep -E 'appVersion\s+=' remotec.go | awk -F'"' '{print $2}')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: |
+          OUTPUT="remotec"
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            OUTPUT="$OUTPUT.exe"
+          fi
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
+          echo "Built $OUTPUT"
+
+      - name: Create archives
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            # Windows
+            zip "dist/remotec-${{ steps.version.outputs.version }}-windows-${{ matrix.arch }}.zip" "remotec.exe"
+          elif [ "${{ matrix.os }}" = "darwin" ]; then
+            # macOS
+            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-macos-${{ matrix.arch }}.tar.gz" "remotec"
+          else
+            # Linux
+            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz" "remotec"
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: dist/
+          if-no-files-found: error
