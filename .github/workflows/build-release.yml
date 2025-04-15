@@ -26,16 +26,16 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-          cache: false  # 禁用 setup-go 的自动缓存
+#          cache: false  # 禁用 setup-go 的自动缓存
 
-#      # 🔥 新增缓存步骤（放在 `go mod tidy` 之前）
-#      - name: Cache Go modules
-#        uses: actions/cache@v4
-#        with:
-#          path: ~/go/pkg/mod
-#          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-#          restore-keys: |
-#            ${{ runner.os }}-go-
+      # 🔥 新增缓存步骤（放在 `go mod tidy` 之前）
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Install dependencies
         run: go mod tidy
@@ -43,7 +43,7 @@ jobs:
       - name: Get version from code
         id: version
         run: |
-          VERSION=$(grep -E '^version=' config.conf | awk -F'=' '{print $2}')
+          VERSION=$(grep -E '^version:' config.yml | awk -F': ' '{print $2}')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build

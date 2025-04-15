@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,12 +26,20 @@ const (
 	contentType = "application/json; charset=utf-8"
 )
 
+type AppConfig struct {
+	Version string `yaml:"version"`
+}
+
+//go:embed config.yml
+var embeddedConfig []byte
+
 var (
-	port     string
-	command  string
-	token    string
-	endpoint string
-	showHelp bool
+	appConfig AppConfig
+	port      string
+	command   string
+	token     string
+	endpoint  string
+	showHelp  bool
 )
 
 type Execution struct {
@@ -71,6 +81,7 @@ func init() {
 }
 
 func main() {
+	initAppConfig()
 	flag.Parse()
 	setupLogger()
 
@@ -87,19 +98,16 @@ func main() {
 	startServer()
 }
 
-func getVersion() string {
-	version := "unknown"
-	data, err := os.ReadFile("config.conf")
-	if err == nil {
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "version=") {
-				version = strings.TrimSpace(strings.TrimPrefix(line, "version="))
-				break
-			}
-		}
+func initAppConfig() {
+	if len(embeddedConfig) == 0 {
+		appConfig.Version = "unknown" // 默认版本号
+		return
 	}
-	return version
+
+	if err := yaml.Unmarshal(embeddedConfig, &appConfig); err != nil {
+		logWarn("解析配置文件失败: %v", err)
+		appConfig.Version = "unknown" // 解析失败时设置默认版本号
+	}
 }
 
 func startServer() {
@@ -424,7 +432,7 @@ func logMessage(level, format string, v ...interface{}) {
 
 func printHelp() {
 	fmt.Printf(`
-远程命令执行服务 v%s
+远程命令执行服务 %s
 
 程序启动：
   remotec -p 端口号 -c 命令 [选项]
@@ -464,7 +472,7 @@ POST请求示例：
   2、多次执行返回的output为最后一次执行的结果；
   3、循环执行时Response会立即返回，执行结果通过日志输出；
 
-`, getVersion())
+`, appConfig.Version)
 }
 
 func max(a, b int) int {
