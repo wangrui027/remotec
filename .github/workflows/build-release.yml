@@ -3,6 +3,7 @@ name: Build and Release
 on:
   push:
     branches: [ master ]
+    tags: [ 'v*' ]
 
 jobs:
   build:
@@ -70,3 +71,12 @@ jobs:
           name: remotec-binaries-${{ matrix.os }}-${{ matrix.arch }}  # 唯一名称
           path: dist/
           if-no-files-found: error
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.tar.gz
+          generate_release_notes: true
+          
