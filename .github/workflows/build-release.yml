@@ -13,36 +13,29 @@ jobs:
     strategy:
       matrix:
         go-version: [ '1.23.x' ]
-        # 精简后的架构组合：优先覆盖主流设备
+        # 并行构建的矩阵组合
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64, arm, mips, mipsle]
+        # 排除无效组合
+        exclude:
+          - os: windows
+            arch: arm
+          - os: windows
+            arch: mips
+          - os: windows
+            arch: mipsle
+          - os: darwin
+            arch: arm
+          - os: darwin
+            arch: mips
+          - os: darwin
+            arch: mipsle
+        # 为特定组合添加额外参数（如 GOARM）
         include:
-          - os: linux
-            arch: amd64
-            suffix: linux-amd64
           - os: linux
             arch: arm
             goarm: 7
-            suffix: linux-armv7
-          - os: linux
-            arch: arm64
-            suffix: linux-arm64
-          - os: linux
-            arch: mips
-            suffix: linux-mips
-          - os: linux
-            arch: mipsle
-            suffix: linux-mipsle
-          - os: windows
-            arch: amd64
-            suffix: windows-amd64
-          - os: windows
-            arch: arm64
-            suffix: windows-arm64
-          - os: darwin
-            arch: amd64
-            suffix: macos-amd64
-          - os: darwin
-            arch: arm64
-            suffix: macos-arm64
+            suffix: linux-armv7  # 显式命名 ARMv7
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -82,13 +75,23 @@ jobs:
           CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
           echo "Built $OUTPUT for ${{ matrix.os }}-${{ matrix.arch }}"
 
+      - name: Generate release suffix
+        id: suffix
+        run: |
+          if [ -n "${{ matrix.suffix }}" ]; then
+            SUFFIX="${{ matrix.suffix }}"
+          else
+            SUFFIX="${{ matrix.os }}-${{ matrix.arch }}"
+          fi
+          echo "suffix=${SUFFIX}" >> $GITHUB_OUTPUT
+
       - name: Create archives
         run: |
           mkdir -p dist
           if [ "${{ matrix.os }}" = "windows" ]; then
-            zip "dist/remotec-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.zip" "remotec.exe"
+            zip "dist/remotec-${{ steps.version.outputs.version }}-${{ steps.suffix.outputs.suffix }}.zip" "remotec.exe"
           else
-            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.tar.gz" "remotec"
+            tar -czf "dist/remotec-${{ steps.version.outputs.version }}-${{ steps.suffix.outputs.suffix }}.tar.gz" "remotec"
           fi
 
       - name: Create Release
