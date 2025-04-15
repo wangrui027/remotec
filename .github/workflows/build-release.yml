@@ -40,7 +40,7 @@ jobs:
           if [ "${{ matrix.os }}" = "windows" ]; then
             OUTPUT="$OUTPUT.exe"
           fi
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
+          CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
           echo "Built $OUTPUT"
 
       - name: Create archives
