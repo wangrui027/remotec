@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	appVersion  = "1.12.0"
+	version     = "1.13.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -423,17 +423,15 @@ func printHelp() {
   -h, --help            显示帮助信息
 
 程序启动示例：
-  remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token secret
+  remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token your_token
 
 接口请求参数：
-  GET请求参数通过查询字符串传递，POST请求参数通过JSON body传递，支持以下字段：
   action      string    执行动作（multiple、loop、stop、stopAll）
   delay       int       循环执行间隔（秒）
   count       int       多次执行次数
   exec_id     string    执行ID（请求返回中获得）
 
 GET请求示例：
-  程序启动：remotec -p 8080 -c "ping 127.0.0.1 -c 2" --token your_token
   单次执行：curl 'http://localhost:8080/path'
   多次执行：curl 'http://localhost:8080/path?action=multiple&count=3'
   循环执行：curl 'http://localhost:8080/path?action=loop&delay=5'
@@ -445,14 +443,14 @@ POST请求示例：
   curl -X POST -H "Content-Type: application/json" -H "token: your_token" \
   -d '{"action":"loop","delay":5}' http://localhost:8080/path
 
-其他请求示例与原GET方式类似，只需将参数放入JSON body即可。
+其他请求示例与GET方式类似，只需将参数放入JSON body即可。
 
 使用说明：
   1、单次执行和多次执行的结果随Response返回；
   2、多次执行返回的output为最后一次执行的结果；
   3、循环执行时Response会立即返回，执行结果通过日志输出；
 
-`, appVersion)
+`, version)
 }
 
 func max(a, b int) int {
