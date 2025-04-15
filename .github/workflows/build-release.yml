@@ -14,10 +14,20 @@ jobs:
       matrix:
         go-version: [ '1.23.x' ]
         os: [ windows, linux, darwin ]
-        arch: [ amd64, arm64 ]
-#        exclude:
-#          - os: darwin
-#            arch: arm64
+        # 扩展支持的架构，包括路由器常见架构
+        arch: [ amd64, arm64, arm, mips, mipsle, mips64, mips64le ]
+        # 排除不支持的组合（例如 darwin + arm）
+        exclude:
+          - os: darwin
+            arch: arm
+          - os: darwin
+            arch: mips
+          - os: darwin
+            arch: mipsle
+          - os: darwin
+            arch: mips64
+          - os: darwin
+            arch: mips64le
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,9 +36,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-#          cache: false  # 禁用 setup-go 的自动缓存
 
-      # 🔥 新增缓存步骤（放在 `go mod tidy` 之前）
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -52,6 +60,10 @@ jobs:
           if [ "${{ matrix.os }}" = "windows" ]; then
             OUTPUT="$OUTPUT.exe"
           fi
+          # 为 ARM 架构设置 GOARM（默认为 7，可根据需要调整）
+          if [ "${{ matrix.arch }}" = "arm" ]; then
+            export GOARM=7
+          fi
           CGO_ENABLED=0 GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -o $OUTPUT
           echo "Built $OUTPUT"
 
@@ -66,13 +78,6 @@ jobs:
             tar -czf "dist/remotec-${{ steps.version.outputs.version }}-linux-${{ matrix.arch }}.tar.gz" "remotec"
           fi
 
-#      - name: Upload artifacts
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: remotec-binaries-${{ matrix.os }}-${{ matrix.arch }}  # 唯一名称
-#          path: dist/
-#          if-no-files-found: error
-          
       - name: Create Release
         uses: softprops/action-gh-release@v2
         env:
@@ -82,4 +87,3 @@ jobs:
             dist/*.zip
             dist/*.tar.gz
           generate_release_notes: true
-          
