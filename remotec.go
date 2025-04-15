@@ -34,12 +34,13 @@ type AppConfig struct {
 var embeddedConfig []byte
 
 var (
-	appConfig AppConfig
-	port      string
-	command   string
-	token     string
-	endpoint  string
-	showHelp  bool
+	appConfig   AppConfig
+	port        string
+	command     string
+	token       string
+	endpoint    string
+	showHelp    bool
+	showVersion bool
 )
 
 type Execution struct {
@@ -76,6 +77,8 @@ func init() {
 	flag.StringVar(&command, "c", "", "要执行的命令")
 	flag.StringVar(&token, "token", "", "认证token")
 	flag.StringVar(&endpoint, "endpoint", "", "自定义端点路径")
+	flag.BoolVar(&showVersion, "v", false, "显示版本号")
+	flag.BoolVar(&showVersion, "version", false, "")
 	flag.BoolVar(&showHelp, "help", false, "显示帮助信息")
 	flag.BoolVar(&showHelp, "h", false, "")
 }
@@ -84,6 +87,11 @@ func main() {
 	initAppConfig()
 	flag.Parse()
 	setupLogger()
+
+	if showVersion {
+		fmt.Println(appConfig.Version)
+		return
+	}
 
 	if showHelp || len(os.Args) == 1 {
 		printHelp()
@@ -442,6 +450,7 @@ func printHelp() {
   -c          string    要执行的系统命令 (必填)
   --token     string    认证token (选填)
   --endpoint  string    自定义端点路径 (选填)
+  -v, --version         显示版本号
   -h, --help            显示帮助信息
 
 程序启动示例：

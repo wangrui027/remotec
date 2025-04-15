@@ -7,7 +7,7 @@
 ```bash
 [root@aliyun-centos7 ~]# remotec
 
-远程命令执行服务 v1.15.0
+远程命令执行服务 x.y.z
 
 程序启动：
   remotec -p 端口号 -c 命令 [选项]
@@ -17,6 +17,7 @@
   -c          string    要执行的系统命令 (必填)
   --token     string    认证token (选填)
   --endpoint  string    自定义端点路径 (选填)
+  -v, --version         显示版本号
   -h, --help            显示帮助信息
 
 程序启动示例：
