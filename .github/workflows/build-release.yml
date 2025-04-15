@@ -43,7 +43,7 @@ jobs:
       - name: Get version from code
         id: version
         run: |
-          VERSION=$(grep -E 'appVersion\s+=' remotec.go | awk -F'"' '{print $2}')
+          VERSION=$(grep -E '^version=' config.conf | awk -F'=' '{print $2}')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Build

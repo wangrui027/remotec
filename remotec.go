@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	version     = "1.13.0"
 	timeFormat  = "2006-01-02 15:04:05"
 	contentType = "application/json; charset=utf-8"
 )
@@ -86,6 +85,21 @@ func main() {
 	}
 
 	startServer()
+}
+
+func getVersion() string {
+	version := "unknown"
+	data, err := os.ReadFile("config.conf")
+	if err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "version=") {
+				version = strings.TrimSpace(strings.TrimPrefix(line, "version="))
+				break
+			}
+		}
+	}
+	return version
 }
 
 func startServer() {
@@ -450,7 +464,7 @@ POST请求示例：
   2、多次执行返回的output为最后一次执行的结果；
   3、循环执行时Response会立即返回，执行结果通过日志输出；
 
-`, version)
+`, getVersion())
 }
 
 func max(a, b int) int {

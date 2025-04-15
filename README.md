@@ -7,7 +7,7 @@
 ```bash
 [root@aliyun-centos7 ~]# remotec
 
-远程命令执行服务 v1.13.0
+远程命令执行服务 v1.14.0
 
 程序启动：
   remotec -p 端口号 -c 命令 [选项]
